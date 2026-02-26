@@ -17,6 +17,7 @@ interface ScoredContact {
   tributeType: string | null;
   tributeName: string | null;
   lastDonationNote: string | null;
+  publicRecognitionName: string | null;
   donationCount: number;
   lastCallNote: string | null;
 }
@@ -82,8 +83,8 @@ function buildContextLine(
   }
 
   if (lastCallNote && lastCallNote.length > 0) {
-    const truncated = lastCallNote.length > 80 ? lastCallNote.slice(0, 80) + "…" : lastCallNote;
-    parts.push(`Last note: "${truncated}"`);
+    const truncated = lastCallNote.length > 100 ? lastCallNote.slice(0, 100) + "…" : lastCallNote;
+    parts.push(`📞 Last call: "${truncated}"`);
   }
 
   return parts.length > 0 ? parts.join(" · ") : "No prior history.";
@@ -167,6 +168,7 @@ export async function GET() {
         tributeType: donation.tributeType,
         tributeName: donation.tributeName,
         lastDonationNote: donation.lastDonationNote,
+        publicRecognitionName: donation.publicRecognitionName,
         donationCount: donation.donationCount,
         lastCallNote,
       });
@@ -186,21 +188,25 @@ export async function GET() {
         `INSERT INTO daily_call_queue
          (date, contact_id, contact_name, phone, last_gift_amount, last_gift_date,
           lifetime_giving, suggested_ask, context_line, last_campaign, last_fund,
-          tribute_type, tribute_name, last_donation_note, donation_count, last_call_note, position)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+          tribute_type, tribute_name, last_donation_note, public_recognition_name,
+          donation_count, last_call_note, position)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
          ON CONFLICT (date, contact_id) DO UPDATE SET
            context_line = EXCLUDED.context_line,
            last_campaign = EXCLUDED.last_campaign,
            last_fund = EXCLUDED.last_fund,
            tribute_type = EXCLUDED.tribute_type,
            tribute_name = EXCLUDED.tribute_name,
+           last_donation_note = EXCLUDED.last_donation_note,
+           public_recognition_name = EXCLUDED.public_recognition_name,
            last_call_note = EXCLUDED.last_call_note`,
         [
           today, s.contact.id, fullName, s.phone,
           s.lastGiftAmount, s.lastGiftDate, s.lifetimeGiving,
           s.suggestedAsk, s.contextLine,
           s.lastCampaign, s.lastFund, s.tributeType, s.tributeName,
-          s.lastDonationNote, s.donationCount, s.lastCallNote, i + 1,
+          s.lastDonationNote, s.publicRecognitionName,
+          s.donationCount, s.lastCallNote, i + 1,
         ]
       );
     }

@@ -12,9 +12,10 @@ export interface DonationInfo {
   lifetimeGiving: number;
   lastCampaign: string | null;
   lastFund: string | null;
-  tributeType: string | null;   // "IN_HONOR_OF" | "IN_MEMORY_OF" | null
-  tributeName: string | null;   // who they honored/memorialized
-  lastDonationNote: string | null;
+  tributeType: string | null;       // "IN_HONOR_OF" | "IN_MEMORY_OF" | null
+  tributeName: string | null;       // who they honored/memorialized
+  lastDonationNote: string | null;  // payment note on last gift
+  publicRecognitionName: string | null; // how they like to be thanked
   donationCount: number;
   neonAccountId: string | null;
 }
@@ -23,7 +24,8 @@ export async function getDonationHistory(name: string): Promise<DonationInfo> {
   const empty: DonationInfo = {
     lastGiftAmount: null, lastGiftDate: null, lifetimeGiving: 0,
     lastCampaign: null, lastFund: null, tributeType: null, tributeName: null,
-    lastDonationNote: null, donationCount: 0, neonAccountId: null,
+    lastDonationNote: null, publicRecognitionName: null,
+    donationCount: 0, neonAccountId: null,
   };
 
   try {
@@ -70,6 +72,7 @@ export async function getDonationHistory(name: string): Promise<DonationInfo> {
     let tributeType: string | null = null;
     let tributeName: string | null = null;
     let lastDonationNote: string | null = null;
+    let publicRecognitionName: string | null = null;
 
     for (const d of donations) {
       const amount = parseFloat(d.amount || "0");
@@ -79,24 +82,28 @@ export async function getDonationHistory(name: string): Promise<DonationInfo> {
       if (date && (!lastGiftDate || date > lastGiftDate)) {
         lastGiftDate = date;
         lastGiftAmount = amount;
-        // Campaign
-        lastCampaign = d.campaign?.name || d.campaignName || null;
-        // Fund
-        lastFund = d.fund?.name || d.fundName || null;
-        // Tribute (in honor/memory of)
+        lastCampaign = d.campaign?.name || null;
+        lastFund = d.fund?.name || null;
+        // Tribute
         if (d.tribute) {
           tributeType = d.tribute.tributeType || null;
           tributeName = d.tribute.tributeName || d.tribute.name || null;
         }
-        // Notes
-        lastDonationNote = d.note || d.notes || null;
+        // Payment note lives inside payments[0].note — NOT d.note
+        const paymentNote = Array.isArray(d.payments) && d.payments.length > 0
+          ? (d.payments[0].note || null)
+          : null;
+        lastDonationNote = paymentNote || d.note || d.purpose || null;
+        // How they want to be recognized
+        publicRecognitionName = d.publicRecognitionName || null;
       }
     }
 
     return {
       lastGiftAmount, lastGiftDate, lifetimeGiving,
       lastCampaign, lastFund, tributeType, tributeName,
-      lastDonationNote, donationCount: donations.length,
+      lastDonationNote, publicRecognitionName,
+      donationCount: donations.length,
       neonAccountId: accountId,
     };
   } catch (err) {

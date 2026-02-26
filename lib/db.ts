@@ -69,6 +69,7 @@ export async function initTables() {
     `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS tribute_type TEXT`,
     `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS tribute_name TEXT`,
     `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS last_donation_note TEXT`,
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS public_recognition_name TEXT`,
     `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS donation_count INT DEFAULT 0`,
     `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS last_call_note TEXT`,
   ];

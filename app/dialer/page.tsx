@@ -17,6 +17,7 @@ interface QueueItem {
   tribute_type: string | null;
   tribute_name: string | null;
   last_donation_note: string | null;
+  public_recognition_name: string | null;
   donation_count: number;
   last_call_note: string | null;
   position: number;
@@ -617,13 +618,33 @@ export default function DialerPage() {
             </p>
           </div>
 
+          {/* How they like to be recognized */}
+          {current.public_recognition_name && current.public_recognition_name !== current.contact_name && (
+            <div className="mb-2">
+              <span className="text-gray-500 text-xs">Recognized as: </span>
+              <span className="text-gray-300 text-sm">{current.public_recognition_name}</span>
+            </div>
+          )}
+
+          {/* Donation note (from last gift) */}
+          {current.last_donation_note && (
+            <div className="mb-3 px-3 py-2 rounded-lg" style={{ background: "#1a1a2a" }}>
+              <span className="text-xs uppercase tracking-wide text-gray-500">Gift note</span>
+              <p className="text-gray-300 text-sm mt-0.5 leading-relaxed">
+                &quot;{current.last_donation_note.length > 120
+                  ? current.last_donation_note.slice(0, 120) + "…"
+                  : current.last_donation_note}&quot;
+              </p>
+            </div>
+          )}
+
           {/* Last call note */}
           {current.last_call_note && (
             <div className="mb-3 px-3 py-2 rounded-lg" style={{ background: "#1a2a1a" }}>
               <span className="text-xs uppercase tracking-wide text-gray-500">Last call note</span>
               <p className="text-gray-300 text-sm mt-0.5 leading-relaxed">
-                &quot;{current.last_call_note.length > 100
-                  ? current.last_call_note.slice(0, 100) + "…"
+                &quot;{current.last_call_note.length > 120
+                  ? current.last_call_note.slice(0, 120) + "…"
                   : current.last_call_note}&quot;
               </p>
             </div>
