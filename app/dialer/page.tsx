@@ -25,6 +25,27 @@ interface Stats {
   level: number;
 }
 
+interface MissionsData {
+  missions: string[];
+  completed: boolean[];
+}
+
+interface BossData {
+  boss: {
+    contact_name: string;
+    hp_current: number;
+    hp_max: number;
+    goal: string;
+  } | null;
+}
+
+interface SeasonData {
+  raised: number;
+  goal: number;
+  percent: number;
+  on_pace: boolean;
+}
+
 type Outcome =
   | "pledged"
   | "good_conversation"
@@ -50,6 +71,13 @@ export default function DialerPage() {
   const [pledgeAmount, setPledgeAmount] = useState("");
   const [logging, setLogging] = useState(false);
 
+  // Game panel state
+  const [gamePanelOpen, setGamePanelOpen] = useState(false);
+  const [missions, setMissions] = useState<MissionsData | null>(null);
+  const [boss, setBoss] = useState<BossData | null>(null);
+  const [season, setSeason] = useState<SeasonData | null>(null);
+  const [gamePanelLoading, setGamePanelLoading] = useState(false);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -74,12 +102,43 @@ export default function DialerPage() {
     }
   }, []);
 
+  const loadGamePanel = useCallback(async () => {
+    setGamePanelLoading(true);
+    try {
+      const [mRes, bRes, sRes] = await Promise.all([
+        fetch("/api/gamification/missions"),
+        fetch("/api/gamification/boss"),
+        fetch("/api/gamification/season"),
+      ]);
+      const [mData, bData, sData] = await Promise.all([
+        mRes.json(),
+        bRes.json(),
+        sRes.json(),
+      ]);
+      setMissions(mData);
+      setBoss(bData);
+      setSeason(sData);
+    } catch (err) {
+      console.error("Game panel error:", err);
+    } finally {
+      setGamePanelLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (gamePanelOpen && !missions) {
+      loadGamePanel();
+    }
+  }, [gamePanelOpen, missions, loadGamePanel]);
+
   const current = queue[currentIndex] || null;
   const totalToday = queue.length + stats.callsToday;
+  const callTarget = 5;
+  const progressPct = Math.min(100, Math.round((stats.callsToday / callTarget) * 100));
 
   function firstName(fullName: string): string {
     return fullName.split(" ")[0] || fullName;
@@ -127,17 +186,14 @@ export default function DialerPage() {
       const data = await res.json();
 
       if (data.success) {
-        // XP flash
         setXpFlash(data.xpAwarded);
         setTimeout(() => setXpFlash(null), 1500);
 
-        // Streak check
         if (data.callsToday === 1) {
           setStreakFlash(true);
           setTimeout(() => setStreakFlash(false), 2000);
         }
 
-        // Update stats
         setStats({
           callsToday: data.callsToday,
           xpToday: data.xpToday,
@@ -146,7 +202,6 @@ export default function DialerPage() {
           level: data.level,
         });
 
-        // Advance after delay
         setTimeout(() => {
           setShowOutcomes(false);
           setShowPledgeInput(false);
@@ -227,6 +282,8 @@ export default function DialerPage() {
     );
   }
 
+  const allMissionsDone = missions?.completed?.every(Boolean) ?? false;
+
   return (
     <div
       className="min-h-screen flex flex-col relative overflow-hidden"
@@ -256,27 +313,164 @@ export default function DialerPage() {
         </div>
       )}
 
-      {/* Top Bar */}
-      <div className="flex items-center justify-between px-5 py-4">
-        <div className="flex items-center gap-3">
+      {/* Expanded Top Bar */}
+      <div className="px-4 pt-3 pb-2" style={{ maxHeight: "80px" }}>
+        {/* Row 1: Streak | XP | Level */}
+        <div className="flex items-center justify-between mb-1.5">
           <span
-            className="text-2xl font-bold flex items-center gap-1"
+            className="text-2xl font-black flex items-center gap-1"
             style={{ color: "#f97316" }}
           >
             🔥 {stats.streak}
           </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium" style={{ color: "#facc15" }}>
-            {stats.xpThisWeek} XP this week
+          <span className="text-lg font-bold" style={{ color: "#facc15" }}>
+            ⚡ {stats.xpThisWeek} XP
           </span>
-          <span className="text-sm font-medium text-gray-400">
+          <span className="text-base font-bold text-gray-300">
             Lv.{stats.level}
           </span>
         </div>
-        <div className="text-sm font-medium text-gray-300">
-          {stats.callsToday} calls today
+        {/* Row 2: Progress bar */}
+        <div className="flex items-center gap-2">
+          <div
+            className="flex-1 h-3 rounded-full overflow-hidden"
+            style={{ background: "#333" }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${progressPct}%`,
+                background: progressPct >= 100 ? "#22c55e" : "#facc15",
+              }}
+            />
+          </div>
+          <span className="text-xs font-bold text-gray-400 whitespace-nowrap">
+            {stats.callsToday}/{callTarget}
+          </span>
         </div>
+      </div>
+
+      {/* Game Panel Toggle + Panel */}
+      <div className="px-4 pb-1">
+        <button
+          onClick={() => setGamePanelOpen(!gamePanelOpen)}
+          className="text-sm font-bold py-1 px-3 rounded-lg active:scale-95 transition-transform"
+          style={{ background: "#2a2a2a", color: "#facc15" }}
+        >
+          🎮 {gamePanelOpen ? "Hide" : "Missions & Boss"}
+        </button>
+
+        {gamePanelOpen && (
+          <div
+            className="mt-2 rounded-xl p-4 space-y-4 animate-slide-up"
+            style={{ background: "#1a1a1a" }}
+          >
+            {gamePanelLoading ? (
+              <p className="text-gray-400 text-center text-sm">Loading...</p>
+            ) : (
+              <>
+                {/* Daily Missions */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">
+                    Daily Missions
+                  </h3>
+                  {allMissionsDone ? (
+                    <p className="text-sm" style={{ color: "#22c55e" }}>
+                      ✅ All missions done!
+                    </p>
+                  ) : missions?.missions && missions.missions.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {missions.missions.map((m, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <span>
+                            {missions.completed[i] ? "✅" : "⬜"}
+                          </span>
+                          <span
+                            className={
+                              missions.completed[i]
+                                ? "text-gray-500 line-through"
+                                : "text-gray-200"
+                            }
+                          >
+                            {m}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No missions today</p>
+                  )}
+                </div>
+
+                {/* Boss */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">
+                    Active Boss
+                  </h3>
+                  {boss?.boss ? (
+                    <div>
+                      <p className="text-base font-bold text-white mb-1">
+                        🐉 {boss.boss.contact_name}
+                      </p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-gray-400">HP</span>
+                        <span className="text-sm font-mono" style={{ color: "#ef4444" }}>
+                          {"█".repeat(boss.boss.hp_current)}
+                          {"░".repeat(
+                            Math.max(0, boss.boss.hp_max - boss.boss.hp_current)
+                          )}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {boss.boss.hp_current}/{boss.boss.hp_max}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400">{boss.boss.goal}</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No active boss</p>
+                  )}
+                </div>
+
+                {/* Season Pass */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">
+                    Season Pass
+                  </h3>
+                  {season ? (
+                    <div>
+                      <div
+                        className="h-3 rounded-full overflow-hidden mb-1"
+                        style={{ background: "#333" }}
+                      >
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.min(100, season.percent)}%`,
+                            background: season.on_pace ? "#22c55e" : "#ef4444",
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-300">
+                          ${(season.raised / 1000).toFixed(1)}K / $
+                          {(season.goal / 1000).toFixed(0)}K
+                        </span>
+                        <span>
+                          {season.on_pace ? "ON PACE ✅" : "Behind 📉"}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Loading season...</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Main Card */}

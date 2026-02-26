@@ -1,4 +1,9 @@
 import { Pool } from "pg";
+import { neon } from "@neondatabase/serverless";
+
+export function getDb() {
+  return neon(process.env.DATABASE_URL!);
+}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
