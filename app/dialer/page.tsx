@@ -12,6 +12,13 @@ interface QueueItem {
   lifetime_giving: number;
   suggested_ask: number;
   context_line: string;
+  last_campaign: string | null;
+  last_fund: string | null;
+  tribute_type: string | null;
+  tribute_name: string | null;
+  last_donation_note: string | null;
+  donation_count: number;
+  last_call_note: string | null;
   position: number;
   called: boolean;
   outcome: string | null;
@@ -573,33 +580,54 @@ export default function DialerPage() {
             {current.contact_name}
           </h2>
 
-          {/* Last Gift */}
+          {/* Tribute — show prominently if exists */}
+          {current.tribute_name && (
+            <div className="mb-3 px-3 py-2 rounded-lg" style={{ background: "#2a1a0a", borderLeft: "3px solid #d4af37" }}>
+              <span className="text-xs uppercase tracking-wide" style={{ color: "#d4af37" }}>
+                {current.tribute_type === "IN_MEMORY_OF" ? "💛 In memory of" : "✨ In honor of"}
+              </span>
+              <p className="text-white font-semibold mt-0.5">{current.tribute_name}</p>
+            </div>
+          )}
+
+          {/* Last Gift + Campaign */}
           <div className="mb-3">
-            <span className="text-gray-500 text-sm uppercase tracking-wide">
-              Last Gift
-            </span>
+            <span className="text-gray-500 text-sm uppercase tracking-wide">Last Gift</span>
             <p className="text-xl text-white mt-1">
               {formatGift(current.last_gift_amount, current.last_gift_date)}
             </p>
+            {current.last_campaign && (
+              <p className="text-sm mt-0.5" style={{ color: "#9ca3af" }}>
+                📋 {current.last_campaign}
+                {current.last_fund ? ` · ${current.last_fund}` : ""}
+              </p>
+            )}
+            {current.donation_count > 1 && (
+              <p className="text-sm mt-0.5 text-gray-600">
+                {current.donation_count} total gifts · ${current.lifetime_giving?.toLocaleString()} lifetime
+              </p>
+            )}
           </div>
 
           {/* Suggested Ask */}
           <div className="mb-3">
-            <span className="text-gray-500 text-sm uppercase tracking-wide">
-              Suggested Ask
-            </span>
-            <p
-              className="text-2xl font-bold mt-1"
-              style={{ color: "#22c55e" }}
-            >
+            <span className="text-gray-500 text-sm uppercase tracking-wide">Suggested Ask</span>
+            <p className="text-2xl font-bold mt-1" style={{ color: "#22c55e" }}>
               ${current.suggested_ask?.toLocaleString() || "180"}
             </p>
           </div>
 
-          {/* Context */}
-          <p className="text-gray-400 text-base leading-relaxed mb-4">
-            {current.context_line}
-          </p>
+          {/* Last call note */}
+          {current.last_call_note && (
+            <div className="mb-3 px-3 py-2 rounded-lg" style={{ background: "#1a2a1a" }}>
+              <span className="text-xs uppercase tracking-wide text-gray-500">Last call note</span>
+              <p className="text-gray-300 text-sm mt-0.5 leading-relaxed">
+                &quot;{current.last_call_note.length > 100
+                  ? current.last_call_note.slice(0, 100) + "…"
+                  : current.last_call_note}&quot;
+              </p>
+            </div>
+          )}
 
           {/* Phone */}
           <a

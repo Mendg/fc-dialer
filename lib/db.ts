@@ -26,6 +26,13 @@ export async function initTables() {
       lifetime_giving NUMERIC DEFAULT 0,
       suggested_ask NUMERIC,
       context_line TEXT,
+      last_campaign TEXT,
+      last_fund TEXT,
+      tribute_type TEXT,
+      tribute_name TEXT,
+      last_donation_note TEXT,
+      donation_count INT DEFAULT 0,
+      last_call_note TEXT,
       position INT,
       called BOOLEAN DEFAULT FALSE,
       outcome TEXT,
@@ -54,10 +61,20 @@ export async function initTables() {
     );
   `);
 
-  // Add skip_count column if missing (migration)
-  await pool.query(`
-    ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS skip_count INT DEFAULT 0;
-  `).catch(() => {});
+  // Migrations — add columns if missing
+  const migrations = [
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS skip_count INT DEFAULT 0`,
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS last_campaign TEXT`,
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS last_fund TEXT`,
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS tribute_type TEXT`,
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS tribute_name TEXT`,
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS last_donation_note TEXT`,
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS donation_count INT DEFAULT 0`,
+    `ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS last_call_note TEXT`,
+  ];
+  for (const m of migrations) {
+    await pool.query(m).catch(() => {});
+  }
 
   // Deduplicate: keep only the lowest-id row per (date, contact_id)
   await pool.query(`

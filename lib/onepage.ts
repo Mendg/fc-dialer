@@ -16,6 +16,33 @@ export interface OnePageContact {
   created_at?: string;
 }
 
+export interface CallNote {
+  date: string;
+  text: string;
+  result: string;
+}
+
+export async function getRecentCallNotes(contactId: string): Promise<CallNote[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/calls?contact_id=${contactId}&per_page=3`, {
+      headers: { Authorization: getAuthHeader() },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const calls = json.data?.calls || [];
+    return calls.map((item: Record<string, unknown>) => {
+      const c = (item.call as Record<string, string>) || (item as Record<string, string>);
+      return {
+        date: c.date || "",
+        text: c.text || c.description || "",
+        result: c.call_result || "",
+      };
+    }).slice(0, 3);
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchDonorContacts(): Promise<OnePageContact[]> {
   const allContacts: OnePageContact[] = [];
   let page = 1;
