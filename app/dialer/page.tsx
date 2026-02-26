@@ -70,6 +70,7 @@ export default function DialerPage() {
   const [showPledgeInput, setShowPledgeInput] = useState(false);
   const [pledgeAmount, setPledgeAmount] = useState("");
   const [logging, setLogging] = useState(false);
+  const [skippedIds, setSkippedIds] = useState<Set<number>>(new Set());
 
   // Game panel state
   const [gamePanelOpen, setGamePanelOpen] = useState(false);
@@ -232,13 +233,25 @@ export default function DialerPage() {
     setShowOutcomes(false);
     setShowPledgeInput(false);
 
+    const newSkippedIds = new Set(skippedIds);
+    newSkippedIds.add(current.id);
+    setSkippedIds(newSkippedIds);
+
     const skipped = queue[currentIndex];
     const rest = queue.filter((_, i) => i !== currentIndex);
-    setQueue([...rest, skipped]);
+    const newQueue = [...rest, skipped];
+    setQueue(newQueue);
 
+    // If all remaining contacts have been skipped, stay at current index
+    // (the "all skipped" screen will show)
     if (currentIndex >= rest.length) {
       setCurrentIndex(0);
     }
+  }
+
+  function handleResetSkips() {
+    setSkippedIds(new Set());
+    setCurrentIndex(0);
   }
 
   if (loading) {
@@ -255,24 +268,39 @@ export default function DialerPage() {
     );
   }
 
-  if (!current) {
+  // All contacts skipped (but queue is not empty) — show reset option
+  const allSkipped = queue.length > 0 && queue.every((q) => skippedIds.has(q.id));
+
+  if (!current || allSkipped) {
+    const isEmpty = queue.length === 0;
     return (
       <div
         className="min-h-screen flex items-center justify-center px-6"
         style={{ background: "#0f0f0f" }}
       >
         <div className="text-center">
-          <div className="text-5xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-white mb-2">All done!</h2>
+          <div className="text-5xl mb-4">{isEmpty ? "🎉" : "⏭️"}</div>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            {isEmpty ? "All done!" : "You skipped everyone!"}
+          </h2>
           <p className="text-gray-400 text-lg mb-2">
             {stats.callsToday} calls made today
           </p>
-          <p className="text-lg" style={{ color: "#facc15" }}>
+          <p className="text-lg mb-6" style={{ color: "#facc15" }}>
             {stats.xpToday} XP earned
           </p>
+          {!isEmpty && (
+            <button
+              onClick={handleResetSkips}
+              className="w-full mb-3 px-8 py-4 rounded-xl text-lg font-bold text-white active:scale-95 transition-transform"
+              style={{ background: "#374151", minHeight: "60px" }}
+            >
+              Go back through skipped ({queue.length})
+            </button>
+          )}
           <button
             onClick={loadData}
-            className="mt-8 px-8 py-4 rounded-xl text-lg font-bold text-white active:scale-95 transition-transform"
+            className="w-full px-8 py-4 rounded-xl text-lg font-bold text-white active:scale-95 transition-transform"
             style={{ background: "#22c55e", minHeight: "60px" }}
           >
             Refresh Queue
