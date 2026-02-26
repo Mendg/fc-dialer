@@ -70,6 +70,12 @@ export default function DialerPage() {
   const [showPledgeInput, setShowPledgeInput] = useState(false);
   const [pledgeAmount, setPledgeAmount] = useState("");
   const [logging, setLogging] = useState(false);
+  const [rewardChest, setRewardChest] = useState<{
+    tier: string | null;
+    text: string | null;
+    xpMultiplier: number;
+    xpAwarded: number;
+  } | null>(null);
 
   // Game panel state
   const [gamePanelOpen, setGamePanelOpen] = useState(false);
@@ -186,12 +192,17 @@ export default function DialerPage() {
       const data = await res.json();
 
       if (data.success) {
-        setXpFlash(data.xpAwarded);
-        setTimeout(() => setXpFlash(null), 1500);
+        // Show reward chest
+        setRewardChest({
+          tier: data.rewardTier,
+          text: data.rewardText,
+          xpMultiplier: data.xpMultiplier,
+          xpAwarded: data.xpAwarded,
+        });
 
         if (data.callsToday === 1) {
           setStreakFlash(true);
-          setTimeout(() => setStreakFlash(false), 2000);
+          setTimeout(() => setStreakFlash(false), 2500);
         }
 
         setStats({
@@ -202,17 +213,18 @@ export default function DialerPage() {
           level: data.level,
         });
 
+        // Auto-advance after 3.5s (or on tap)
         setTimeout(() => {
+          setRewardChest(null);
+          setXpFlash(data.xpAwarded);
+          setTimeout(() => setXpFlash(null), 1200);
           setShowOutcomes(false);
           setShowPledgeInput(false);
           setPledgeAmount("");
           setLogging(false);
-
           setQueue((prev) => prev.filter((_, i) => i !== currentIndex));
-          if (currentIndex >= queue.length - 1) {
-            setCurrentIndex(0);
-          }
-        }, 1500);
+          if (currentIndex >= queue.length - 1) setCurrentIndex(0);
+        }, 3500);
       }
     } catch (err) {
       console.error("Log error:", err);
@@ -309,6 +321,82 @@ export default function DialerPage() {
             style={{ background: "#f97316", color: "white" }}
           >
             🔥 Streak alive!
+          </div>
+        </div>
+      )}
+
+      {/* Reward Chest Overlay */}
+      {rewardChest && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 px-6"
+          style={{ background: "rgba(0,0,0,0.85)" }}
+          onClick={() => {
+            setRewardChest(null);
+            setXpFlash(rewardChest.xpAwarded);
+            setTimeout(() => setXpFlash(null), 1200);
+            setShowOutcomes(false);
+            setShowPledgeInput(false);
+            setPledgeAmount("");
+            setLogging(false);
+            setQueue((prev) => prev.filter((_, i) => i !== currentIndex));
+            if (currentIndex >= queue.length - 1) setCurrentIndex(0);
+          }}
+        >
+          <div className="text-center w-full max-w-sm">
+            {rewardChest.tier ? (
+              <>
+                {/* Chest icon based on tier */}
+                <div className="text-7xl mb-4 animate-bounce">
+                  {rewardChest.tier === "legendary" ? "🏆" :
+                   rewardChest.tier === "epic" ? "💎" :
+                   rewardChest.tier === "rare" ? "🎁" :
+                   rewardChest.tier === "uncommon" ? "🎉" : "📦"}
+                </div>
+                {/* Tier label */}
+                <div
+                  className="text-xs font-black uppercase tracking-widest mb-2"
+                  style={{
+                    color: rewardChest.tier === "legendary" ? "#ffd700" :
+                           rewardChest.tier === "epic" ? "#c084fc" :
+                           rewardChest.tier === "rare" ? "#60a5fa" :
+                           rewardChest.tier === "uncommon" ? "#4ade80" : "#9ca3af"
+                  }}
+                >
+                  {rewardChest.tier} drop
+                </div>
+                {/* XP awarded */}
+                <div
+                  className="text-4xl font-black mb-3"
+                  style={{ color: "#facc15" }}
+                >
+                  +{rewardChest.xpAwarded} XP
+                  {rewardChest.xpMultiplier > 1 && (
+                    <span className="text-2xl ml-2" style={{ color: "#f97316" }}>
+                      {rewardChest.xpMultiplier}×
+                    </span>
+                  )}
+                </div>
+                {/* Reward text */}
+                <div
+                  className="text-xl font-bold mb-6 px-4 py-3 rounded-xl"
+                  style={{ background: "#1a1a1a", color: "#f5f5f5" }}
+                >
+                  {rewardChest.text}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-6xl mb-4">📦</div>
+                <div className="text-lg text-gray-500 mb-2">Not this time...</div>
+                <div
+                  className="text-3xl font-black mb-6"
+                  style={{ color: "#facc15" }}
+                >
+                  +{rewardChest.xpAwarded} XP ⚡
+                </div>
+              </>
+            )}
+            <div className="text-gray-600 text-sm">tap to continue</div>
           </div>
         </div>
       )}
