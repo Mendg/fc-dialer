@@ -174,7 +174,8 @@ export async function GET() {
         `INSERT INTO daily_call_queue
          (date, contact_id, contact_name, phone, last_gift_amount, last_gift_date,
           lifetime_giving, suggested_ask, context_line, position)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         ON CONFLICT (date, contact_id) DO NOTHING`,
         [
           today,
           s.contact.id,

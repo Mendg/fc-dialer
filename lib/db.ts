@@ -29,7 +29,8 @@ export async function initTables() {
       position INT,
       called BOOLEAN DEFAULT FALSE,
       outcome TEXT,
-      called_at TIMESTAMPTZ
+      called_at TIMESTAMPTZ,
+      skip_count INT DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS dialer_sessions (
@@ -52,4 +53,33 @@ export async function initTables() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+
+  // Add skip_count column if missing (migration)
+  await pool.query(`
+    ALTER TABLE daily_call_queue ADD COLUMN IF NOT EXISTS skip_count INT DEFAULT 0;
+  `).catch(() => {});
+
+  // Deduplicate: keep only the lowest-id row per (date, contact_id)
+  await pool.query(`
+    DELETE FROM daily_call_queue a
+    USING daily_call_queue b
+    WHERE a.date = b.date
+      AND a.contact_id = b.contact_id
+      AND a.id > b.id;
+  `).catch(() => {});
+
+  // Add unique constraint if not exists
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'daily_call_queue_date_contact_id_key'
+      ) THEN
+        ALTER TABLE daily_call_queue
+          ADD CONSTRAINT daily_call_queue_date_contact_id_key
+          UNIQUE (date, contact_id);
+      END IF;
+    END $$;
+  `).catch(() => {});
 }

@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
 
     const newPosition = (maxPos.rows[0]?.max_pos || 0) + 1;
 
-    // Move this contact to end of queue
+    // Move this contact to end of queue and increment skip_count
     await pool.query(
-      "UPDATE daily_call_queue SET position = $1 WHERE id = $2",
+      "UPDATE daily_call_queue SET position = $1, skip_count = COALESCE(skip_count, 0) + 1 WHERE id = $2",
       [newPosition, queueId]
     );
 
